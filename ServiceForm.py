@@ -1,5 +1,6 @@
 from PyQt5 import QtWidgets, QtSql, QtCore
 from PyQt5.QtSql import QSqlQuery
+from PyQt5.QtWidgets import QTableWidgetItem
 
 from Connect import Connect
 
@@ -7,32 +8,31 @@ from Connect import Connect
 class ServiceForm(QtWidgets.QDialog):
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
+        self.setGeometry(500, 300, 400, 300)
+        table = QtWidgets.QTableWidget()
+        table.setGeometry(QtCore.QRect(10, 10, 380, 280))
+        table.setColumnCount(4)
+
         self.db_connect = self.connect_to_sql_server()
         self.db_connect.open()
-        table=QtWidgets.QTableWidget()
-        table.setWindowTitle("Услуги")
-        con=QtSql.QSqlDatabase.addDatabase("QMSSQL")
-        sqm = QtSql.QSqlQueryModel(parent=table)
-        sqm.setQuery("SELECT Title,Cost,DurationInSeconds,Discount FROM Service")
-        sqm.setHeaderData(0, QtCore.Qt.Horizontal, "Название")
-        sqm.setHeaderData(1, QtCore.Qt.Horizontal, "Стоимость")
-        sqm.setHeaderData(2, QtCore.Qt.Horizontal, "Продолжительность")
-        sqm.setHeaderData(3, QtCore.Qt.Horizontal, "Скидка")
-        table.setModel(sqm)
-        table.setColumnWidth(0, 100)
-        table.setColumnWidth(1, 100)
-        table.setColumnWidth(2, 100)
-        table.setColumnWidth(3, 100)
-        table.show()
+        query = QSqlQuery(self.db_connect)
+        query.prepare("SELECT Title,Cost,DurationInSeconds,Discount from Service")
+        query.exec()
+        if query.isActive():
+            query.first()
+            i = 0
+            while query.isValid():
+                table.setRowCount(i)
+                table.insertRow(i)
+                table.setItem(i, 0, QTableWidgetItem(str(query.value('Title'))))
+                table.setItem(i, 1, QTableWidgetItem(str(query.value('Cost'))))
+                table.setItem(i, 2, QTableWidgetItem(str(query.value('DurationInSeconds'))))
+                table.setItem(i, 3, QTableWidgetItem(str(query.value('Discount'))))
+                i = i + 1
+                query.next()
         self.db_connect.close()
-        # query = QSqlQuery(self.db_connect)
-        # query.prepare("SELECT Title,Cost,DurationInSeconds,Discount from Service")
-        # query.exec()
-        # while query.next():
-        #     print(query.value(0), query.value(1), query.value(2), query.value(3), sep=" ")
         form = QtWidgets.QFormLayout()
         form.addRow(table)
-        self.resize(450, 300)
         self.setLayout(form)
 
     def connect_to_sql_server(self):
