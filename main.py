@@ -15,7 +15,6 @@ class RegisterWindow(QtWidgets.QWidget):
         btnUser.move(50, 50)
         btnUser.clicked.connect(self.btnUserClicked)
 
-
         btnAdmin = QtWidgets.QPushButton("Режим администратора")
         btnAdmin.resize(btnAdmin.sizeHint())
         btnAdmin.move(50, 50)

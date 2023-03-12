@@ -1,6 +1,6 @@
 from operator import itemgetter
 
-from PyQt5 import QtWidgets, QtSql, QtCore
+from PyQt5 import QtWidgets, QtCore, Qt
 from PyQt5.QtSql import QSqlQuery
 from PyQt5.QtWidgets import QTableWidgetItem
 
@@ -10,12 +10,21 @@ from Connect import Connect
 class ServiceForm(QtWidgets.QDialog):
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
-        self.sorting=False
-        self.setGeometry(500, 300, 400, 300)
+        self.sorting = False
+        self.setGeometry(300, 300, 750, 300)
+
+        # формирование левого контейнера
+        left_layout = QtWidgets.QVBoxLayout()
+
         self.table = QtWidgets.QTableWidget()
-        self.table.setGeometry(QtCore.QRect(10, 10, 380, 280))
         self.table.setColumnCount(4)
-        self.table.clicked.connect(self.sort_by_cost)
+        self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
+        self.table.horizontalHeaderItem(0).setToolTip("Title")
+        self.table.horizontalHeaderItem(1).setToolTip("Cost")
+        self.table.horizontalHeaderItem(2).setToolTip("DurationInSeconds")
+        self.table.horizontalHeaderItem(3).setToolTip("Discount")
+        # self.table.horizontalHeader().sectionClicked.connect(self.sort_by_cost)
+        self.table.setSortingEnabled(True)
 
         self.db_connect = self.connect_to_sql_server()
         self.db_connect.open()
@@ -25,23 +34,15 @@ class ServiceForm(QtWidgets.QDialog):
         self.services = []
         if query.isActive():
             query.first()
-            i = 0
             while query.isValid():
-                self.table.setRowCount(i)
-                self.table.insertRow(i)
-                self.table.setItem(i, 0, QTableWidgetItem(str(query.value('Title'))))
-                self.table.setItem(i, 1, QTableWidgetItem(str(query.value('Cost'))))
-                self.table.setItem(i, 2, QTableWidgetItem(str(query.value('DurationInSeconds'))))
-                self.table.setItem(i, 3, QTableWidgetItem(str(query.value('Discount'))))
                 temp = {"Title": query.value('Title'), "Cost": query.value('Cost'),
                         "DurationInSeconds": query.value('DurationInSeconds'), "Discount": query.value('Discount')}
                 self.services.append(temp)
-                i = i + 1
                 query.next()
         self.db_connect.close()
+        self.fill_table()
+        self.table.resizeColumnsToContents()
 
-        left_layout = QtWidgets.QVBoxLayout()
-        left_layout.addWidget(self.table)
         btn_layout = QtWidgets.QHBoxLayout()
         btn_add = QtWidgets.QPushButton("Добавить")
         btn_del = QtWidgets.QPushButton("Удалить")
@@ -49,31 +50,105 @@ class ServiceForm(QtWidgets.QDialog):
         btn_layout.addWidget(btn_add)
         btn_layout.addWidget(btn_del)
         btn_layout.addWidget(btn_record)
+        left_layout.addWidget(self.table)
         left_layout.addLayout(btn_layout)
 
+        # формирование правого контейнера
         right_layout = QtWidgets.QVBoxLayout()
-        btn_test = QtWidgets.QPushButton("Добавить")
-        right_layout.addWidget(btn_test)
 
-        main_layout = QtWidgets.QHBoxLayout()
-        main_layout.addLayout(left_layout)
-        main_layout.addLayout(right_layout)
+        group_box_disc = QtWidgets.QGroupBox("Фильтр по скидке")
+        vbox_disc = QtWidgets.QVBoxLayout()
+        group_box_disc.setLayout(vbox_disc)
+        disc_procent = QtWidgets.QComboBox()
+        disc_procent.addItem("Все")
+        disc_procent.addItem("от 0 до 5%")
+        disc_procent.addItem("от 5% до 15%")
+        disc_procent.addItem("от 15% до 30%")
+        disc_procent.addItem("от 30% до 70%")
+        disc_procent.addItem("от 70% до 100%")
+        disc_procent.activated.connect(self.activated)
+        vbox_disc.addWidget(disc_procent)
+
+        group_box_title = QtWidgets.QGroupBox("Поиск по названию")
+        vbox_title = QtWidgets.QVBoxLayout()
+        group_box_title.setLayout(vbox_title)
+        title_text = QtWidgets.QLineEdit()
+        title_text.textChanged.connect()
+        vbox_title.addWidget(title_text)
+
+        group_box_desc = QtWidgets.QGroupBox("Поиск по описанию")
+        vbox_desc = QtWidgets.QVBoxLayout()
+        group_box_desc.setLayout(vbox_desc)
+        title_desc = QtWidgets.QLineEdit()
+        vbox_desc.addWidget(title_desc)
+
+        right_layout.addWidget(group_box_disc)
+        right_layout.addWidget(group_box_title)
+        right_layout.addWidget(group_box_desc)
+
+        # формирование главного контейнера
+        main_layout = QtWidgets.QGridLayout()
+        main_layout.setSpacing(10)
+        main_layout.addLayout(left_layout, 1, 0)
+        main_layout.addLayout(right_layout, 1, 1, 1, 5)
         self.setLayout(main_layout)
 
     def connect_to_sql_server(self):
         db = Connect("HOMEPC\SQLEXPRESS", "db2", "user2", "user2").get_connect()
         return db
 
-    def sort_by_cost(self):
-        self.sorting = not self.sorting
-        mas = sorted(self.services, key=itemgetter('Cost'), reverse=self.sorting)
+    def activated(self, index):
+        if index == 0:
+            self.fill_table()
+        elif index == 1:
+            self.filter_by_discount(0, 0.05)
+        elif index == 2:
+            self.filter_by_discount(0.05, 0.15)
+        elif index == 3:
+            self.filter_by_discount(0.15, 0.30)
+        elif index == 4:
+            self.filter_by_discount(0.30, 0.70)
+        else:
+            self.filter_by_discount(0.70, 1)
+
+    # def sort_by_cost(self, e):
+    #     column_text = self.table.horizontalHeaderItem(e).text()
+    #     self.sorting = not self.sorting
+    #     mas = sorted(self.services, key=itemgetter(column_text), reverse=self.sorting)
+    #     self.table.clear()
+    #     self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
+    #     i = 0
+    #     while i < len(mas):
+    #         self.table.setRowCount(i)
+    #         self.table.insertRow(i)
+    #         self.table.setItem(i, 0, QTableWidgetItem(mas[i]["Title"]))
+    #         self.table.setItem(i, 1, QTableWidgetItem(str(mas[i]["Cost"])))
+    #         self.table.setItem(i, 2, QTableWidgetItem(str(mas[i]["DurationInSeconds"])))
+    #         self.table.setItem(i, 3, QTableWidgetItem(str(mas[i]["Discount"])))
+    #         i = i + 1
+    def filter_by_discount(self, start, finish):
         self.table.clear()
+        self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
         i = 0
-        while i < len(mas):
+        for serve in self.services:
+            if start <= serve["Discount"] < finish:
+                self.table.setRowCount(i)
+                self.table.insertRow(i)
+                self.table.setItem(i, 0, QTableWidgetItem(serve["Title"]))
+                self.table.setItem(i, 1, QTableWidgetItem(str(serve["Cost"])))
+                self.table.setItem(i, 2, QTableWidgetItem(str(serve["DurationInSeconds"])))
+                self.table.setItem(i, 3, QTableWidgetItem(str(serve["Discount"])))
+                i = i + 1
+
+    def fill_table(self):
+        self.table.clear()
+        self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
+        i = 0
+        for serve in self.services:
             self.table.setRowCount(i)
             self.table.insertRow(i)
-            self.table.setItem(i, 0, QTableWidgetItem(mas[i]["Title"]))
-            self.table.setItem(i, 1, QTableWidgetItem(str(mas[i]["Cost"])))
-            self.table.setItem(i, 2, QTableWidgetItem(str(mas[i]["DurationInSeconds"])))
-            self.table.setItem(i, 3, QTableWidgetItem(str(mas[i]["Discount"])))
+            self.table.setItem(i, 0, QTableWidgetItem(serve["Title"]))
+            self.table.setItem(i, 1, QTableWidgetItem(str(serve["Cost"])))
+            self.table.setItem(i, 2, QTableWidgetItem(str(serve["DurationInSeconds"])))
+            self.table.setItem(i, 3, QTableWidgetItem(str(serve["Discount"])))
             i = i + 1
