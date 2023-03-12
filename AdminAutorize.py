@@ -25,4 +25,5 @@ class AdminAutorizeWindow(QtWidgets.QDialog):
     def btnOKClicked(self):
         if self.textPassword.text() == "0000":
             serviceForm = ServiceForm(self)
-            serviceForm.show()
+            serviceForm.setWindowTitle("Список услуг")
+            serviceForm.exec()
