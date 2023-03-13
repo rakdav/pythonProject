@@ -1,6 +1,6 @@
 from operator import itemgetter
 
-from PyQt5 import QtWidgets, QtCore, Qt
+from PyQt5 import QtWidgets, QtCore, Qt, QtGui
 from PyQt5.QtSql import QSqlQuery
 from PyQt5.QtWidgets import QTableWidgetItem
 
@@ -8,24 +8,14 @@ from Connect import Connect
 
 
 class ServiceForm(QtWidgets.QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, role, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
+        self.role = role
+        self.count_label = QtWidgets.QLabel()
         self.sorting = False
         self.setGeometry(300, 300, 750, 300)
 
-        # формирование левого контейнера
-        left_layout = QtWidgets.QVBoxLayout()
-
-        self.table = QtWidgets.QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
-        self.table.horizontalHeaderItem(0).setToolTip("Title")
-        self.table.horizontalHeaderItem(1).setToolTip("Cost")
-        self.table.horizontalHeaderItem(2).setToolTip("DurationInSeconds")
-        self.table.horizontalHeaderItem(3).setToolTip("Discount")
-        # self.table.horizontalHeader().sectionClicked.connect(self.sort_by_cost)
-        self.table.setSortingEnabled(True)
-
+        # загрузка данных из БД
         self.db_connect = self.connect_to_sql_server()
         self.db_connect.open()
         query = QSqlQuery(self.db_connect)
@@ -40,18 +30,32 @@ class ServiceForm(QtWidgets.QDialog):
                 self.services.append(temp)
                 query.next()
         self.db_connect.close()
+
+        # формирование левого контейнера
+        left_layout = QtWidgets.QVBoxLayout()
+
+        self.table = QtWidgets.QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
+        self.table.horizontalHeaderItem(0).setToolTip("Title")
+        self.table.horizontalHeaderItem(1).setToolTip("Cost")
+        self.table.horizontalHeaderItem(2).setToolTip("DurationInSeconds")
+        self.table.horizontalHeaderItem(3).setToolTip("Discount")
+        self.table.setSortingEnabled(True)
         self.fill_table()
         self.table.resizeColumnsToContents()
 
         btn_layout = QtWidgets.QHBoxLayout()
         btn_add = QtWidgets.QPushButton("Добавить")
         btn_del = QtWidgets.QPushButton("Удалить")
+        btn_del.clicked.connect(self.service_delete)
         btn_record = QtWidgets.QPushButton("Запись на услуги")
         btn_layout.addWidget(btn_add)
         btn_layout.addWidget(btn_del)
         btn_layout.addWidget(btn_record)
         left_layout.addWidget(self.table)
-        left_layout.addLayout(btn_layout)
+        if self.role == "Admin":
+            left_layout.addLayout(btn_layout)
 
         # формирование правого контейнера
         right_layout = QtWidgets.QVBoxLayout()
@@ -73,7 +77,7 @@ class ServiceForm(QtWidgets.QDialog):
         vbox_title = QtWidgets.QVBoxLayout()
         group_box_title.setLayout(vbox_title)
         title_text = QtWidgets.QLineEdit()
-        title_text.textChanged.connect()
+        title_text.textChanged.connect(self.fill_by_title)
         vbox_title.addWidget(title_text)
 
         group_box_desc = QtWidgets.QGroupBox("Поиск по описанию")
@@ -85,6 +89,7 @@ class ServiceForm(QtWidgets.QDialog):
         right_layout.addWidget(group_box_disc)
         right_layout.addWidget(group_box_title)
         right_layout.addWidget(group_box_desc)
+        right_layout.addWidget(self.count_label)
 
         # формирование главного контейнера
         main_layout = QtWidgets.QGridLayout()
@@ -98,18 +103,19 @@ class ServiceForm(QtWidgets.QDialog):
         return db
 
     def activated(self, index):
-        if index == 0:
-            self.fill_table()
-        elif index == 1:
-            self.filter_by_discount(0, 0.05)
-        elif index == 2:
-            self.filter_by_discount(0.05, 0.15)
-        elif index == 3:
-            self.filter_by_discount(0.15, 0.30)
-        elif index == 4:
-            self.filter_by_discount(0.30, 0.70)
-        else:
-            self.filter_by_discount(0.70, 1)
+        match index:
+            case 0:
+                self.fill_table()
+            case 1:
+                self.filter_by_discount(0, 0.05)
+            case 2:
+                self.filter_by_discount(0.05, 0.15)
+            case 3:
+                self.filter_by_discount(0.15, 0.30)
+            case 4:
+                self.filter_by_discount(0.30, 0.70)
+            case 5:
+                self.filter_by_discount(0.70, 1)
 
     # def sort_by_cost(self, e):
     #     column_text = self.table.horizontalHeaderItem(e).text()
@@ -138,7 +144,13 @@ class ServiceForm(QtWidgets.QDialog):
                 self.table.setItem(i, 1, QTableWidgetItem(str(serve["Cost"])))
                 self.table.setItem(i, 2, QTableWidgetItem(str(serve["DurationInSeconds"])))
                 self.table.setItem(i, 3, QTableWidgetItem(str(serve["Discount"])))
-                i = i + 1
+                if serve["Discount"] > 0:
+                    self.table.item(i, 0).setBackground(QtGui.QColor(127, 255, 0))
+                    self.table.item(i, 1).setBackground(QtGui.QColor(127, 255, 0))
+                    self.table.item(i, 2).setBackground(QtGui.QColor(127, 255, 0))
+                    self.table.item(i, 3).setBackground(QtGui.QColor(127, 255, 0))
+                i = i+1
+        self.count_label.setText("Всего " + str(i) + " из " + str(len(self.services)))
 
     def fill_table(self):
         self.table.clear()
@@ -151,4 +163,33 @@ class ServiceForm(QtWidgets.QDialog):
             self.table.setItem(i, 1, QTableWidgetItem(str(serve["Cost"])))
             self.table.setItem(i, 2, QTableWidgetItem(str(serve["DurationInSeconds"])))
             self.table.setItem(i, 3, QTableWidgetItem(str(serve["Discount"])))
+            if serve["Discount"] > 0:
+                self.table.item(i, 0).setBackground(QtGui.QColor(127, 255, 0))
+                self.table.item(i, 1).setBackground(QtGui.QColor(127, 255, 0))
+                self.table.item(i, 2).setBackground(QtGui.QColor(127, 255, 0))
+                self.table.item(i, 3).setBackground(QtGui.QColor(127, 255, 0))
             i = i + 1
+        self.count_label.setText("Всего " + str(i) + " из " + str(len(self.services)))
+
+    def fill_by_title(self, find_stroka):
+        self.table.clear()
+        self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
+        i = 0
+        for serve in self.services:
+            if find_stroka in serve["Title"]:
+                self.table.setRowCount(i)
+                self.table.insertRow(i)
+                self.table.setItem(i, 0, QTableWidgetItem(serve["Title"]))
+                self.table.setItem(i, 1, QTableWidgetItem(str(serve["Cost"])))
+                self.table.setItem(i, 2, QTableWidgetItem(str(serve["DurationInSeconds"])))
+                self.table.setItem(i, 3, QTableWidgetItem(str(serve["Discount"])))
+                if serve["Discount"] > 0:
+                    self.table.item(i, 0).setBackground(QtGui.QColor(127, 255, 0))
+                    self.table.item(i, 1).setBackground(QtGui.QColor(127, 255, 0))
+                    self.table.item(i, 2).setBackground(QtGui.QColor(127, 255, 0))
+                    self.table.item(i, 3).setBackground(QtGui.QColor(127, 255, 0))
+                i = i + 1
+        self.count_label.setText("Всего "+ str(i) + " из " + str(len(self.services)))
+
+    def service_delete(self):
+        pass

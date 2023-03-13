@@ -13,26 +13,26 @@ class RegisterWindow(QtWidgets.QWidget):
         btnUser = QtWidgets.QPushButton("Обычный режим")
         btnUser.resize(btnUser.sizeHint())
         btnUser.move(50, 50)
-        btnUser.clicked.connect(self.btnUserClicked)
+        btnUser.clicked.connect(self.btn_User_Clicked)
 
         btnAdmin = QtWidgets.QPushButton("Режим администратора")
         btnAdmin.resize(btnAdmin.sizeHint())
         btnAdmin.move(50, 50)
-        btnAdmin.clicked.connect(self.btnAdminClicked)
+        btnAdmin.clicked.connect(self.btn_Admin_Clicked)
 
         form = QtWidgets.QFormLayout()
         form.addRow(btnUser)
         form.addRow(btnAdmin)
         self.setLayout(form)
 
-    def btnAdminClicked(self):
+    def btn_Admin_Clicked(self):
         dialog = AdminAutorizeWindow(self)
         dialog.setWindowTitle("Авторизация")
         dialog.exec()
 
-    def btnUserClicked(self):
-        dialog = ServiceForm(self)
-        dialog.exec()
+    def btn_User_Clicked(self):
+        dialog = ServiceForm(role="User", parent=self)
+        dialog.show()
 
 
 if __name__ == '__main__':
