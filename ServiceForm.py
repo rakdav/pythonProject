@@ -15,21 +15,7 @@ class ServiceForm(QtWidgets.QDialog):
         self.sorting = False
         self.setGeometry(300, 300, 750, 300)
 
-        # загрузка данных из БД
-        self.db_connect = self.connect_to_sql_server()
-        self.db_connect.open()
-        query = QSqlQuery(self.db_connect)
-        query.prepare("SELECT Title,Cost,DurationInSeconds,Discount from Service")
-        query.exec()
-        self.services = []
-        if query.isActive():
-            query.first()
-            while query.isValid():
-                temp = {"Title": query.value('Title'), "Cost": query.value('Cost'),
-                        "DurationInSeconds": query.value('DurationInSeconds'), "Discount": query.value('Discount')}
-                self.services.append(temp)
-                query.next()
-        self.db_connect.close()
+        self.update_db()
 
         # формирование левого контейнера
         left_layout = QtWidgets.QVBoxLayout()
@@ -117,21 +103,6 @@ class ServiceForm(QtWidgets.QDialog):
             case 5:
                 self.filter_by_discount(0.70, 1)
 
-    # def sort_by_cost(self, e):
-    #     column_text = self.table.horizontalHeaderItem(e).text()
-    #     self.sorting = not self.sorting
-    #     mas = sorted(self.services, key=itemgetter(column_text), reverse=self.sorting)
-    #     self.table.clear()
-    #     self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
-    #     i = 0
-    #     while i < len(mas):
-    #         self.table.setRowCount(i)
-    #         self.table.insertRow(i)
-    #         self.table.setItem(i, 0, QTableWidgetItem(mas[i]["Title"]))
-    #         self.table.setItem(i, 1, QTableWidgetItem(str(mas[i]["Cost"])))
-    #         self.table.setItem(i, 2, QTableWidgetItem(str(mas[i]["DurationInSeconds"])))
-    #         self.table.setItem(i, 3, QTableWidgetItem(str(mas[i]["Discount"])))
-    #         i = i + 1
     def filter_by_discount(self, start, finish):
         self.table.clear()
         self.table.setHorizontalHeaderLabels(["Title", "Cost", "DurationInSeconds", "Discount"])
@@ -149,7 +120,7 @@ class ServiceForm(QtWidgets.QDialog):
                     self.table.item(i, 1).setBackground(QtGui.QColor(127, 255, 0))
                     self.table.item(i, 2).setBackground(QtGui.QColor(127, 255, 0))
                     self.table.item(i, 3).setBackground(QtGui.QColor(127, 255, 0))
-                i = i+1
+                i = i + 1
         self.count_label.setText("Всего " + str(i) + " из " + str(len(self.services)))
 
     def fill_table(self):
@@ -189,7 +160,34 @@ class ServiceForm(QtWidgets.QDialog):
                     self.table.item(i, 2).setBackground(QtGui.QColor(127, 255, 0))
                     self.table.item(i, 3).setBackground(QtGui.QColor(127, 255, 0))
                 i = i + 1
-        self.count_label.setText("Всего "+ str(i) + " из " + str(len(self.services)))
+        self.count_label.setText("Всего " + str(i) + " из " + str(len(self.services)))
 
     def service_delete(self):
-        pass
+        index = self.table.currentRow()
+        text = self.table.item(index, 0).text()
+        self.db_connect = self.connect_to_sql_server()
+        self.db_connect.open()
+        query = QSqlQuery(self.db_connect)
+        query.prepare(f"DELETE FROM Service WHERE Title='{text}'")
+        query.exec()
+        self.db_connect.close()
+        self.update_db()
+        self.fill_table()
+
+    def update_db(self):
+        # загрузка данных из БД
+        self.db_connect = self.connect_to_sql_server()
+        self.db_connect.open()
+        query = QSqlQuery(self.db_connect)
+        query.prepare("SELECT * from Service")
+        query.exec()
+        self.services = []
+        if query.isActive():
+            query.first()
+            while query.isValid():
+                temp = {"Title": query.value('Title'), "Cost": query.value('Cost'),
+                        "DurationInSeconds": query.value('DurationInSeconds'), "Discount": query.value('Discount'),
+                        "Description": query.value("Description"), "MainImagePath": query.value("MainImagePath")}
+                self.services.append(temp)
+                query.next()
+        self.db_connect.close()
